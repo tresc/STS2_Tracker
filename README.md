@@ -26,7 +26,6 @@ to analyze your pathing, card pick rates, and "Asset Lifecycle."
 * **Run Autopsy**: Deep-dive into your latest run's "Pathing & Velocity."
 * **HP Timeline**: SVG-rendered health tracking across every floor.
 * **Career Ledger**: Global win rates, Ascension scaling, and "Elite Lethality" stats.
-* **90s Aesthetic**: Zero-dependency, monochromatic CSS for that classic terminal feel.
 
 ---
 
