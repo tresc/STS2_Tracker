@@ -32,9 +32,9 @@ to analyze your pathing, card pick rates, and "Asset Lifecycle."
 
 ## 🛠️ TECHNICAL SPECS
 
-* **Language**: Python 3.x
+* **Language**: Python 3
 * **Data Source**: Steam `userdata` history files (.run)
-* **Output**: Standalone HTML/CSS (No JavaScript required)
+* **Output**: Standalone HTML/CSS 
 
 ---
 
