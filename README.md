@@ -1,7 +1,7 @@
 # ☠️ SPIRE-METRICS TERMINAL (v1.0)
 
 A lightweight harvester and data visualizer for **Slay the Spire 2** career stats. 
-This tool parses your local `.run` files and generates a 90s-era terminal dashboard 
+This tool parses your local `.run` files and generates a terminal dashboard 
 to analyze your pathing, card pick rates, and "Asset Lifecycle."
 
 ---
