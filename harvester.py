@@ -78,6 +78,11 @@ def parse_run(filepath):
         data = json.load(f)
 
     players = data.get("players", [])
+    
+    # Ignore multiplayer runs completely
+    if len(players) > 1:
+        return None
+        
     p0      = players[0] if players else {}
 
     # Cause of death — use top-level fields first, fall back to room type
@@ -166,7 +171,6 @@ def parse_run(filepath):
                     elif room_type == "elite": run["elite_fights"]    += 1; run["elite_log"].append(f"{m_id}: {turns}T")
                     else:                      run["hallway_fights"]  += 1
 
-                # FIX: use actual room_type strings — 'event' not 'unknown'
                 if   room_type == "elite":     run["elites"]    += 1
                 elif room_type == "event":     run["events"]    += 1
                 elif room_type == "shop":      run["shops"]     += 1
@@ -195,7 +199,6 @@ def parse_run(filepath):
                 act_stat["damage"]    += dmg
                 act_stat["gold"]      += g_in
 
-                # FIX: reset is_first_stats per-file inside parse_run, not globally
                 if first_stats:
                     run["start_gold"] = stats.get("current_gold", 0)
                     first_stats = False
@@ -816,14 +819,22 @@ if __name__ == "__main__":
         if not all_files:
             raise FileNotFoundError("No .run files found in history folder. Check HISTORY_FOLDER path.")
 
-        latest_path = max(all_files, key=os.path.getmtime)
-
         print(f"Parsing {len(all_files)} run file(s)...")
-        all_runs = [parse_run(p) for p in all_files]
+        
+        # 1. Parse everything first, filtering out multiplayer runs (which return None)
+        parsed_files = [parse_run(p) for p in all_files]
+        all_runs = [r for r in parsed_files if r is not None]
 
-        ledgers    = aggregate(all_runs)
-        latest_run = next(r for r in all_runs if r["filepath"] == latest_path)
+        if not all_runs:
+            raise ValueError("No valid single-player .run files found to process.")
 
+        # 2. Build the career aggregations
+        ledgers = aggregate(all_runs)
+        
+        # 3. Find the newest valid single-player run by checking the mtime directly
+        latest_run = max(all_runs, key=lambda r: r["mtime"])
+
+        # 4. Generate the dashboard
         html = build_page(latest_run, ledgers, all_runs)
 
         with open(OUTPUT_PATH, "w", encoding="utf-8") as f:
