@@ -1,4 +1,5 @@
 # SPIRE-METRICS TERMINAL (v1.0.1)
+---
 ## 🔩 Vibe-coded with Gemini and Claude
 
 A lightweight harvester and data visualizer for **Slay the Spire 2** career stats. 
