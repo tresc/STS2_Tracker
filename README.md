@@ -1,7 +1,7 @@
 <center><img width="1300" height="613" alt="Screenshot 2026-04-02 200925" src="https://github.com/user-attachments/assets/f0235a14-f085-4b0a-b3b5-6d48f168777d" /></center>
 
 
-# ☠️ SPIRE-METRICS TERMINAL (v1.0)
+# ☠️ SPIRE-METRICS TERMINAL (v1.0.1)
 
 A lightweight harvester and data visualizer for **Slay the Spire 2** career stats. 
 This tool parses your local `.run` files and generates a terminal dashboard 
