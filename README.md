@@ -1,4 +1,4 @@
-# SPIRE-METRICS TERMINAL (v1.0.1)
+# SPIRE-METRICS TERMINAL (v1.1)
 ---
 ## 🔩 Vibe-coded with Gemini and Claude
 
