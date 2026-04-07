@@ -1306,7 +1306,7 @@ def build_page(latest_solo, solo_ledgers, all_solo, latest_mp, mp_ledger, all_mp
     return f"""<!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Spire-Metrics Terminal v1.2.1</title><style>{CSS}</style></head><body>
-<h1>&#9760; SPIRE-METRICS TERMINAL <span style="font-size:0.55em;color:#555;">v1.3</span></h1>
+<h1>&#9760; METRICS TERMINAL <span style="font-size:0.55em;color:#555;">v1.2.1</span></h1>
 <div class="tab-bar">
   <button class="tab-btn active" data-tab="solo" onclick="switchTab('solo')">&#9632; Solo</button>
   <button class="tab-btn" data-tab="coop" onclick="switchTab('coop')">&#9670; Co-op</button>
