@@ -27,7 +27,7 @@ to analyze your pathing, card pick rates, and more.
 * **Run Autopsy**: Deep-dive into your latest run
 * **HP Timeline**
 * **Career Ledger**: Global win rates, Ascension scaling, and "Elite Lethality" stats.
-
+* **MUCH MORE!**
 ---
 
 ## 🛠️ TECHNICAL SPECS
