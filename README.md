@@ -8,7 +8,7 @@ to analyze your pathing, card pick rates, and more.
 
 <center><img width="1300" height="613" alt="Screenshot 2026-04-02 200925" src="https://github.com/user-attachments/assets/f0235a14-f085-4b0a-b3b5-6d48f168777d" /></center>
 
-[Sample, excuse the horrible win%](https://tresc.github.io/STS2_Tracker/))
+[Sample, excuse the horrible win%](https://tresc.github.io/STS2_Tracker/)
 
 ---
 
