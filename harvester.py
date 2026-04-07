@@ -31,7 +31,7 @@ def clean(s, prefix=""):
     return "" if s.startswith("NONE") or s == "." else s
 
 def fmt_time(seconds):
-    if not seconds: return "N/A"
+    if seconds is None: return "N/A"
     m, s = divmod(int(seconds), 60)
     h, m = divmod(m, 60)
     return f"{h}h {m:02d}m {s:02d}s" if h else f"{m}m {s:02d}s"
@@ -110,9 +110,10 @@ def _parse_relics(relic_list):
     return sorted(result, key=lambda r: r["floor"])
 
 # ─── SINGLE-PLAYER PARSER ─────────────────────────────────────────────────────
-def parse_run(filepath):
-    with open(filepath, "r", encoding="utf-8") as f:
-        data = json.load(f)
+def parse_run(filepath, data=None):
+    if data is None:
+        with open(filepath, "r", encoding="utf-8") as f:
+            data = json.load(f)
 
     players = data.get("players", [])
     if len(players) != 1:
@@ -134,6 +135,8 @@ def parse_run(filepath):
         "game_mode": data.get("game_mode", "standard"),
         "build_id":  data.get("build_id", "N/A"),
         "acts":      [a.replace("ACT.", "") for a in data.get("acts", [])],
+        "acts_reached": len(data.get("map_point_history", [])),
+        "start_time": data.get("start_time", 0),
         "modifiers": data.get("modifiers", []),
         "kb_enc": kb_enc, "kb_evt": kb_evt,
         "char":         p0.get("character", "UNKNOWN").replace("CHARACTER.", ""),
@@ -176,7 +179,7 @@ def parse_run(filepath):
             floor_num += 1; run["floors"] += 1
 
             room_type = "unknown"
-            is_neow = mp_idx == 0 and any(r.get("model_id") == "EVENT.NEOW" for r in mp.get("rooms", []))
+            is_neow = act_idx == 0 and mp_idx == 0 and any(r.get("model_id") == "EVENT.NEOW" for r in mp.get("rooms", []))
             room_monster_id = None; room_turns = 0
 
             for room in mp.get("rooms", []):
@@ -269,7 +272,7 @@ def parse_run(filepath):
 
         run["act_stats"].append(act_stat)
 
-    run["final_gold"]    = run["start_gold"] + run["gold_gained"] - run["gold_spent"]
+    run["final_gold"]    = run["gold_timeline"][-1][1] if run["gold_timeline"] else 0
     run["hallway_dmg"]   = run["damage"] - run["elite_dmg"] - run["boss_dmg"]
     run["died_to_elite"] = not run["win"] and last_room == "elite"
     run["died_to_boss"]  = not run["win"] and last_room == "boss"
@@ -286,9 +289,10 @@ def parse_run(filepath):
 
 
 # ─── MULTIPLAYER PARSER ───────────────────────────────────────────────────────
-def parse_run_mp(filepath):
-    with open(filepath, "r", encoding="utf-8") as f:
-        data = json.load(f)
+def parse_run_mp(filepath, data=None):
+    if data is None:
+        with open(filepath, "r", encoding="utf-8") as f:
+            data = json.load(f)
 
     players = data.get("players", [])
     if len(players) < 2:
@@ -330,6 +334,7 @@ def parse_run_mp(filepath):
         "run_time": data.get("run_time", 0), "game_mode": data.get("game_mode", "standard"),
         "build_id": data.get("build_id", "N/A"),
         "acts": [a.replace("ACT.", "") for a in data.get("acts", [])],
+        "start_time": data.get("start_time", 0),
         "kb_enc": kb_enc, "kb_evt": kb_evt,
         "player_count": len(players),
         "party_chars": [id_to_char[pid] for pid in player_ids],
@@ -350,7 +355,7 @@ def parse_run_mp(filepath):
         for mp_idx, mp in enumerate(act_floors):
             act_stat["floors"] += 1; floor_num += 1; run["floors"] += 1
             room_type = "unknown"
-            is_neow = mp_idx == 0 and any(r.get("model_id") == "EVENT.NEOW" for r in mp.get("rooms", []))
+            is_neow = act_idx == 0 and mp_idx == 0 and any(r.get("model_id") == "EVENT.NEOW" for r in mp.get("rooms", []))
 
             for room in mp.get("rooms", []):
                 room_type = room.get("room_type", "unknown")
@@ -475,7 +480,8 @@ def aggregate(all_runs):
                 if rid not in l["relic_wins"]: l["relic_wins"][rid] = {"wins": 0, "runs": 0}
                 l["relic_wins"][rid]["runs"] += 1
                 if run["win"]: l["relic_wins"][rid]["wins"] += 1
-            for act_name in run["acts"]:
+            acts_reached = run["acts"][:run.get("acts_reached", len(run["acts"]))]
+            for act_name in acts_reached:
                 l["act_variants"][act_name] = l["act_variants"].get(act_name, 0) + 1
 
             # ── v2 aggregation ──
@@ -511,7 +517,7 @@ def aggregate(all_runs):
 
             l["campfire_heal_hps"].extend(run.get("campfire_heal_hps", []))
 
-            for act_name in run["acts"]:
+            for act_name in acts_reached:
                 if act_name not in l["act_variant_wins"]:
                     l["act_variant_wins"][act_name] = {"wins": 0, "runs": 0}
                 l["act_variant_wins"][act_name]["runs"] += 1
@@ -519,6 +525,7 @@ def aggregate(all_runs):
 
             for enc in run.get("enchantments", []):
                 l["enchantment_counts"][enc] = l["enchantment_counts"].get(enc, 0) + 1
+            for enc in set(run.get("enchantments", [])):
                 if enc not in l["enchantment_wins"]:
                     l["enchantment_wins"][enc] = {"wins": 0, "runs": 0}
                 l["enchantment_wins"][enc]["runs"] += 1
@@ -582,7 +589,7 @@ def compute_records(all_solo):
     records["most_gold_run"]    = max(valid, key=lambda r: r["gold_gained"])
     records["longest_run"]      = max(valid, key=lambda r: r["floors"])
 
-    sorted_runs = sorted(valid, key=lambda r: r["mtime"])
+    sorted_runs = sorted(valid, key=lambda r: r.get("start_time", 0) or r["mtime"])
     cur_w = 0; cur_l = 0; max_w = 0; max_l = 0
     for r in sorted_runs:
         if r["win"]: cur_w += 1; cur_l = 0; max_w = max(max_w, cur_w)
@@ -917,7 +924,7 @@ def render_latest_run(r):
 
     total_combats = r["hallway_fights"] + r["elite_fights"] + r["boss_encounters"]
     avg_ttk = avg(r["turns"], total_combats)
-    potion_util = pct(r["potions_used"] + r["potions_discarded"], r["potions_gained"])
+    potion_util = pct(r["potions_used"], r["potions_gained"])
     ancient = r["ancient_choice"] or "N/A"
 
     pathing_rows = (
@@ -1132,7 +1139,7 @@ def render_history(all_runs):
         res = "WIN" if r["win"] else "LOSS"; cls = "win-row" if r["win"] else "loss-row"
         acts = " &rarr; ".join(r["acts"]) or "N/A"
         dc = r.get("death_cause") or "&mdash;"
-        rows.append(f'<tr class="{cls}"><td>{i+1}</td><td>{dt}</td><td>{r["char"]}</td><td>A{r["ascension"]}</td><td>{res}</td><td>{r["floors"]}</td><td>{len(r["final_deck"])}</td><td>{acts}</td><td>{fmt_time(r["run_time"])}</td><td>{dc}</td><td>{r["seed"]}</td></tr>')
+        rows.append(f'<tr class="{cls}"><td>{i+1}</td><td>{dt}</td><td>{r["char"]}</td><td>A{r["ascension"]}</td><td>{res}</td><td>{r["floors"]}</td><td>{len(r["final_deck"])}</td><td>{acts}</td><td data-sort="{r["run_time"]}">{fmt_time(r["run_time"])}</td><td>{dc}</td><td>{r["seed"]}</td></tr>')
     return f"""
 <div class="card">
   <h2 class="hdr-dark">[SP-3] SOLO RUN HISTORY &mdash; {len(all_runs)} runs</h2>
@@ -1176,7 +1183,7 @@ def render_latest_mp_run(r):
         panel_cls = "panel local-player" if ps["is_local"] else "panel coop-panel"
         tag_cls = "player-tag local" if ps["is_local"] else "player-tag remote"
         tag_label = "&#9733; YOU" if ps["is_local"] else "teammate"
-        potion_util = pct(ps["potions_used"] + ps["potions_discarded"], ps["potions_gained"])
+        potion_util = pct(ps["potions_used"], ps["potions_gained"])
         stat_rows = (
             f"<tr><td>Damage</td><td>{ps['damage']} (H:{ps['hallway_dmg']} E:{ps['elite_dmg']} B:{ps['boss_dmg']})</td></tr>"
             f"<tr><td>HP Restored / Max HP &#177;</td><td>{ps['healed']} / +{ps['max_hp_gain']} -{ps['max_hp_loss']}</td></tr>"
@@ -1244,7 +1251,7 @@ def render_mp_history(mp_runs):
         party = " / ".join(r["party_chars"])
         if r.get("local_char"): party = party.replace(r["local_char"], f"<b>{r['local_char']}*</b>")
         dc = r.get("death_cause") or "&mdash;"
-        rows.append(f'<tr class="{cls}"><td>{i+1}</td><td>{dt}</td><td>{party}</td><td>A{r["ascension"]}</td><td>{res}</td><td>{r["floors"]}</td><td>{" &rarr; ".join(r["acts"]) or "N/A"}</td><td>{fmt_time(r["run_time"])}</td><td>{dc}</td><td>{r["seed"]}</td></tr>')
+        rows.append(f'<tr class="{cls}"><td>{i+1}</td><td>{dt}</td><td>{party}</td><td>A{r["ascension"]}</td><td>{res}</td><td>{r["floors"]}</td><td>{" &rarr; ".join(r["acts"]) or "N/A"}</td><td data-sort="{r["run_time"]}">{fmt_time(r["run_time"])}</td><td>{dc}</td><td>{r["seed"]}</td></tr>')
     return f"""
 <div class="card"><h2 class="hdr-coop">[MP-3] CO-OP HISTORY &mdash; {len(mp_runs)} runs <small style="font-weight:normal;color:#886;">(*=you)</small></h2>
   <div class="card-body"><table class="hist" id="mp-hist">
@@ -1260,7 +1267,10 @@ function sortTable(id, col) {
   var rows = Array.from(t.querySelectorAll('tr')).slice(1);
   var k = id+'_'+col; var asc = sortDirs[k] = !sortDirs[k];
   rows.sort(function(a,b) {
-    var at = (a.cells[col]||{}).textContent||'', bt = (b.cells[col]||{}).textContent||'';
+    var ac = a.cells[col], bc = b.cells[col];
+    if (!ac || !bc) return 0;
+    var at = ac.getAttribute('data-sort') || ac.textContent || '';
+    var bt = bc.getAttribute('data-sort') || bc.textContent || '';
     var an = parseFloat(at.replace(/[^0-9.-]/g,'')), bn = parseFloat(bt.replace(/[^0-9.-]/g,''));
     if (!isNaN(an) && !isNaN(bn)) return asc ? an-bn : bn-an;
     return asc ? at.localeCompare(bt) : bt.localeCompare(at);
@@ -1295,8 +1305,8 @@ def build_page(latest_solo, solo_ledgers, all_solo, latest_mp, mp_ledger, all_mp
 
     return f"""<!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Spire-Metrics Terminal v1.2</title><style>{CSS}</style></head><body>
-<h1>&#9760; SPIRE-METRICS TERMINAL <span style="font-size:0.55em;color:#555;">v2.0</span></h1>
+<title>Spire-Metrics Terminal v1.3</title><style>{CSS}</style></head><body>
+<h1>&#9760; SPIRE-METRICS TERMINAL <span style="font-size:0.55em;color:#555;">v1.3</span></h1>
 <div class="tab-bar">
   <button class="tab-btn active" data-tab="solo" onclick="switchTab('solo')">&#9632; Solo</button>
   <button class="tab-btn" data-tab="coop" onclick="switchTab('coop')">&#9670; Co-op</button>
@@ -1318,12 +1328,13 @@ if __name__ == "__main__":
         all_solo = []; all_mp = []
         for path in all_files:
             with open(path, "r", encoding="utf-8") as f:
-                pc = len(json.load(f).get("players", []))
+                data = json.load(f)
+            pc = len(data.get("players", []))
             if pc == 1:
-                result = parse_run(path); 
+                result = parse_run(path, data)
                 if result: all_solo.append(result)
             elif pc > 1:
-                result = parse_run_mp(path)
+                result = parse_run_mp(path, data)
                 if result: all_mp.append(result)
         if not all_solo:
             raise ValueError("No valid solo .run files found.")
